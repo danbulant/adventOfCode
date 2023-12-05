@@ -58,34 +58,25 @@ for line in open("input2"):
     source = int(source)
     offset = dest - source
     length = int(length)
-    print("Mapping {} to {} with length {}".format(source, dest, length))
     sourceRange = range(source, source + length)
-    splitSomething = True
     maxloops = 10
-    while splitSomething:
-        toRemove: list[range] = []
-        splitSomething = False
-        newPrevious: list[range] = []
-        for i in previous:
-            if not overlap(i, sourceRange): continue
-            splitSomething = True
-            toRemove.append(i)
-            if i.start == sourceRange.start and i.stop == sourceRange.stop:
-                current.append(range(dest, dest + length))
-                print("Changed1 {} to {}".format(i, range(dest, dest + length)))
-                continue
-            nonoverlap1, overlapping, nonoverlap2 = getOverlapRange(i, sourceRange)
-            if nonoverlap1 is not None and nonoverlap1.start < nonoverlap1.stop:
-                newPrevious.append(nonoverlap1)
-            current.append(range(overlapping.start + offset, overlapping.stop + offset))
-            if nonoverlap2 is not None and nonoverlap2.start < nonoverlap2.stop:
-                newPrevious.append(nonoverlap2)
-        for i in toRemove:
-            previous.remove(i)
-        previous += newPrevious
-        previous = mergeRanges(previous)
-        print("p", previous, current)
+    toRemove: list[range] = []
+    newPrevious: list[range] = []
+    for i in previous:
+        if not overlap(i, sourceRange): continue
+        toRemove.append(i)
+        if i.start == sourceRange.start and i.stop == sourceRange.stop:
+            current.append(range(dest, dest + length))
+            continue
+        nonoverlap1, overlapping, nonoverlap2 = getOverlapRange(i, sourceRange)
+        if nonoverlap1 is not None and nonoverlap1.start < nonoverlap1.stop:
+            newPrevious.append(nonoverlap1)
+        current.append(range(overlapping.start + offset, overlapping.stop + offset))
+        if nonoverlap2 is not None and nonoverlap2.start < nonoverlap2.stop:
+            newPrevious.append(nonoverlap2)
+    for i in toRemove:
+        previous.remove(i)
+    previous += newPrevious
 
 finishmap()
-print(previous)
 print(min(prev.start for prev in previous))
