@@ -39,6 +39,10 @@ fn part2(file: &str) -> i32 {
     solution
 }
 
+fn main() {
+    dbg!(part2("input2"));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,8 +70,4 @@ mod tests {
     fn part2_input3() {
         assert_eq!(part2("input3"), 281)
     }
-}
-
-fn main() {
-    todo!();
 }
