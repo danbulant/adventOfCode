@@ -320,7 +320,7 @@ impl Map {
 }
 
 fn parse_map() -> Map {
-    let file = BufReader::new(File::open("./input1b").unwrap());
+    let file = BufReader::new(File::open("./input2").unwrap());
     let mut map = Map { map: vec![], pos: Pos::new(0, 0), dist_map: vec![], main_loop: vec![] };
 
     for (y, line) in file.lines().enumerate() {
@@ -381,28 +381,31 @@ fn main() {
         let mut is_enabled = false;
         let mut in_dir = None;
         for (x, col) in row.iter().enumerate() {
-            if *col == MainLoop::Loop && x != 0 && in_dir.is_some() {
-                if map.main_loop[y][x-1] == MainLoop::Loop {
-                    if map.map[y][x] == Pipes::Horizontal {
-                        continue;
-                    }
-                    let out_dir = map.map[y][x].get_directions().get(0).cloned();
-                    if out_dir.unwrap() != in_dir.unwrap() {
+            if *col == MainLoop::Loop {
+                let pipe = map.get(Pos::new(x, y));
+                match pipe {
+                    Pipes::Horizontal => {},
+                    Pipes::Vertical => {
                         is_enabled = !is_enabled;
-                    }
-                    in_dir = None;
+                    },
+                    Pipes::NE => {
+                        in_dir = Some(Directions::North);
+                    },
+                    Pipes::NW => {
+                        if in_dir != Some(Directions::North) {
+                            is_enabled = !is_enabled;
+                        }
+                    },
+                    Pipes::SE => {
+                        in_dir = Some(Directions::South);
+                    },
+                    Pipes::SW => {
+                        if in_dir != Some(Directions::South) {
+                            is_enabled = !is_enabled;
+                        }
+                    },
+                    _ => {}
                 }
-            }
-            if is_enabled && *col == MainLoop::Loop {
-                is_enabled = false;
-                continue;
-            }
-            if !is_enabled && *col == MainLoop::Loop {
-                if map.map[y][x] != Pipes::Vertical {
-                    in_dir = map.map[y][x].get_directions().get(0).cloned();
-                }
-                is_enabled = true;
-                continue;
             }
             if is_enabled && *col == MainLoop::None {
                 marked_positions.push(Pos::new(x, y));
