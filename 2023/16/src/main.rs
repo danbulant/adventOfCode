@@ -3,27 +3,6 @@ use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash:
 fn main() {
     part1();
     part2();
-    // let mut values = HashSet::new();
-    // for x in 0..110 {
-    //     for y in 0..110 {
-    //         let vecs = [
-    //             VEC_RIGHT,
-    //             VEC_LEFT,
-    //             VEC_UP,
-    //             VEC_DOWN
-    //         ];
-    //         for vec in vecs {
-    //             // let vecval = ((vec.x+2)*vec.x.abs()+(vec.y+3)*vec.y.abs() - 1) as usize;
-    //             let vecval = (vec.x+1)*vec.x.abs()+(vec.y+2)*vec.y.abs();
-    //             let val = (x * 111 + y + 1) << 2 | vecval as usize;
-    //             println!("{} {} {:?} val={} vecval(plex)={}", x, y, vec, val, vecval);
-    //             if !values.insert(val) {
-    //                 println!("Collision at {},{} with {:?} {}", x, y, vec, val);
-    //                 exit(1);
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,45 +47,11 @@ struct Beam {
     vector: Vector
 }
 
-// const VECTOR_VALUES_HASH: [usize; 13] = [
-//     0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3
-// ];
-
 impl Beam {
     fn to_nums(&self) -> usize {
         let vecval = (self.vector.x+1)*self.vector.x.abs()+(self.vector.y+2)*self.vector.y.abs();
         let val = (self.point.x * 110 + self.point.y + 1) << 2 | vecval as usize;
         val
-    }
-}
-
-#[derive(Debug, Default)]
-struct BeamHasher {
-    nums: u64
-}
-
-impl Hasher for BeamHasher {
-    fn write(&mut self, bytes: &[u8]) {
-        // assign bytes directly to nums - this hasher will always get 4 u8s, just once
-        // self.nums = 0;
-        for i in 0..4 {
-            self.nums ^= (bytes[i] as u64) << (i * 8);
-        }
-    }
-
-    fn finish(&self) -> u64 {
-        self.nums
-    }
-}
-
-impl std::hash::Hash for Beam {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(&[
-            self.point.x as u8,
-            self.point.y as u8,
-            self.vector.x as u8,
-            self.vector.y as u8
-        ]);
     }
 }
 
@@ -191,11 +136,6 @@ fn print_energized(energized: &Vec<Vec<bool>>) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-// fn append_if_not_in<T: PartialEq + Debug>(vec: &mut Vec<T>, item: T) {
-//     if !vec.contains(&item) {
-//         vec.push(item);
-//     }
-// }
 fn set_range<T: Copy>(vec: &mut Vec<T>, range: std::ops::Range<usize>, item: T) {
     for i in range {
         vec[i] = item;
@@ -249,41 +189,32 @@ fn get_rows_and_cols(map: Vec<Vec<char>>) -> (Vec<Vec<MapPoint>>, Vec<Vec<MapPoi
                 }
             }).collect()
     }).collect();
-    let columns: Vec<Vec<MapPoint>> = (0..map[0].len()).map(|x| {
-        (0..map.len())
-            .filter(|y| map[*y][x] != '.')
-            .map(|y| {
-                MapPoint {
-                    point: Point { x, y },
-                    mirror: match map[y][x] {
-                        '/' => Type::MirrorBT,
-                        '\\' => Type::MirrorTB,
-                        '-' => Type::SplitHorizontal,
-                        '|' => Type::SplitVertical,
-                        _ => panic!("Invalid char")
-                    }
-                }
-            }).collect()
-    }).collect();
+    let columns = {
+        let mut columns = vec![Vec::with_capacity(map.len()); map.len()];
+        for row in &rows {
+            for mp in row {
+                columns[mp.point.x].push(*mp);
+            }
+        }
+        columns
+    };
 
     (rows, columns)
 }
 
 fn setup() -> (Point, Vec<Vec<MapPoint>>, Vec<Vec<MapPoint>>) {
     let map = get_map();
-    // let energized : Vec<Vec<bool>> = map.iter().map(|l| l.iter().map(|_| false).collect()).collect();
     let max_point = Point { x: map[0].len(), y: map.len() };
     let (rows, columns) = get_rows_and_cols(map);
 
     (max_point, rows, columns)
 }
 
-fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoint>>, beam: Beam) -> usize {
+fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapPoint>>, beam: Beam) -> usize {
     let mut energized : Vec<Vec<bool>> = vec![vec![false; max_point.x]; max_point.y];
-    // let mut beams_set = HashSet::<Beam, BuildHasherDefault<BeamHasher>>::default();
     let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
-    let mut beams : Vec<Beam> = vec![beam];
-    // beams_set.insert(beams[0]);
+    let mut beams : Vec<Beam> = Vec::with_capacity(30);
+    beams.push(beam);
     let b0 = beams[0].to_nums();
     beams_set_vec[b0] = true;
 
@@ -320,7 +251,7 @@ fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoi
             },
             Some(mappoint) => {
                 mark(vec, beam.point, (if vec_is_vertical { mappoint.point.y } else { mappoint.point.x } ) + (if vec.is_positive() { 1 } else { 0 }), &mut energized);
-                let mut vecs = vec![];
+                let mut vecs = Vec::with_capacity(2);
                 if mappoint.mirror == Type::SplitHorizontal || mappoint.mirror == Type::SplitVertical {
                     let (v1, v2) = vectors_from_split(mappoint.mirror);
                     vecs.push(v1);
@@ -336,8 +267,6 @@ fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoi
                             point: new_point,
                             vector: v
                         };
-                        // append_if_not_in(&mut beams, beam);
-                        // if beams_set.insert(beam) {
                         let bnum = beam.to_nums();
                         if beams_set_vec[bnum] == false {
                             beams_set_vec[bnum] = true;
@@ -356,7 +285,7 @@ fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoi
 
 fn part1() {
     let (max_point, rows, columns) = setup();
-    let count = get_count(max_point, rows, columns, Beam {
+    let count = get_count(max_point, &rows, &columns, Beam {
         point: Point { x: 0, y: 0 },
         vector: VEC_RIGHT
     });
@@ -366,33 +295,19 @@ fn part1() {
 fn part2() {
     let (max_point, rows, columns) = setup();
     let mut count = 0;
-    for x in 0..max_point.x {
-        for y in 0..max_point.y {
-            if x != 0 && y != 0 && x != max_point.x - 1 && y != max_point.y - 1 {
-                continue;
-            }
-            let mut vecs = vec![];
-            if x > 0 {
-                vecs.push(VEC_LEFT);
-            }
-            if x == 0 {
-                vecs.push(VEC_RIGHT);
-            }
-            if y > 0 {
-                vecs.push(VEC_UP);
-            }
-            if y == 0 {
-                vecs.push(VEC_DOWN);
-            }
-            for vector in vecs {
-                let count_here = get_count(max_point, rows.clone(), columns.clone(), Beam {
-                    point: Point { x, y },
-                    vector
-                });
-                if count_here > count {
-                    count = count_here;
-                    println!("New max: {} at {},{}", count, x, y);
-                }
+    for vector in [VEC_LEFT, VEC_RIGHT, VEC_UP, VEC_DOWN] {
+        let is_vert = vector.is_vertical();
+        let is_pos = vector.is_positive();
+        let num2 = if !is_pos { max_point.x - 1 } else { 0 };
+        for num in 0..max_point.x {
+            let beam = Beam {
+                point: if is_vert { Point { x: num, y: num2 } } else { Point { x: num2, y: num } },
+                vector
+            };
+            let count_here = get_count(max_point, &rows, &columns, beam);
+            if count_here > count {
+                count = count_here;
+                println!("New max: {} at {},{}", count, num, num2);
             }
         }
     }
