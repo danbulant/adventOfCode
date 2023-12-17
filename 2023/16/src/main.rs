@@ -73,11 +73,10 @@ struct Beam {
 // ];
 
 impl Beam {
-    fn to_nums(&self) -> (usize, usize) {
+    fn to_nums(&self) -> usize {
         let vecval = (self.vector.x+1)*self.vector.x.abs()+(self.vector.y+2)*self.vector.y.abs();
         let val = (self.point.x * 110 + self.point.y + 1) << 2 | vecval as usize;
-        (val >> 6, 1 << (val & 63))
-        // 0b1000000000000000000000000000000000000000000000000000000000000000
+        val
     }
 }
 
@@ -282,11 +281,11 @@ fn setup() -> (Point, Vec<Vec<MapPoint>>, Vec<Vec<MapPoint>>) {
 fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoint>>, beam: Beam) -> usize {
     let mut energized : Vec<Vec<bool>> = vec![vec![false; max_point.x]; max_point.y];
     // let mut beams_set = HashSet::<Beam, BuildHasherDefault<BeamHasher>>::default();
-    let mut beams_set_vec = vec![0; (max_point.x + 1) * (max_point.y + 1) / 8 + 1];
+    let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
     let mut beams : Vec<Beam> = vec![beam];
     // beams_set.insert(beams[0]);
     let b0 = beams[0].to_nums();
-    beams_set_vec[b0.0] = b0.1;
+    beams_set_vec[b0] = true;
 
     let mut offset = 0;
 
@@ -340,8 +339,8 @@ fn get_count(max_point: Point, rows: Vec<Vec<MapPoint>>, columns: Vec<Vec<MapPoi
                         // append_if_not_in(&mut beams, beam);
                         // if beams_set.insert(beam) {
                         let bnum = beam.to_nums();
-                        if beams_set_vec[bnum.0] & bnum.1 == 0 {
-                            beams_set_vec[bnum.0] |= bnum.1;
+                        if beams_set_vec[bnum] == false {
+                            beams_set_vec[bnum] = true;
                             beams.push(beam);
                         }
                     }
