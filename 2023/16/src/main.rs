@@ -2,7 +2,8 @@ use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash:
 
 fn main() {
     part1();
-    part2();
+    // part2();
+    // println!("test");
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,29 +137,25 @@ fn print_energized(energized: &Vec<Vec<bool>>) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn set_range<T: Copy>(vec: &mut Vec<T>, range: std::ops::Range<usize>, item: T) {
-    for i in range {
-        vec[i] = item;
-    }
+fn set_range(vec: &mut [bool], range: std::ops::Range<usize>, item: bool) {
+    vec[range].iter_mut().for_each(|b| *b = item);
 }
-fn set_range_in<T: Copy>(vec: &mut Vec<Vec<T>>, range: std::ops::Range<usize>, item: T, offset: usize) {
-    for i in range {
-        vec[i][offset] = item;
-    }
+fn set_range_in(vec: &mut [[bool; 110]; 110], range: std::ops::Range<usize>, item: bool, offset: usize) {
+    vec[range].iter_mut().for_each(|b| b[offset] = item);
 }
 
-fn mark(vec: Vector, point: Point, otherpos: usize, energized: &mut Vec<Vec<bool>>) {
+fn mark(vec: Vector, point: Point, otherpos: usize, energized: &mut [[bool; 110]; 110]) {
     if vec.is_vertical() {
         if vec.is_positive() {
-            set_range_in(energized, point.y..otherpos, true, point.x);
+            set_range_in(energized, point.y..otherpos, true, point.x)
         } else {
-            set_range_in(energized, otherpos..(point.y + 1), true, point.x);
+            set_range_in(energized, otherpos..(point.y + 1), true, point.x)
         }
     } else {
         if vec.is_positive() {
-            set_range(&mut energized[point.y], point.x..otherpos, true);
+            set_range(&mut energized[point.y], point.x..otherpos, true)
         } else {
-            set_range(&mut energized[point.y], otherpos..(point.x + 1), true);
+            set_range(&mut energized[point.y], otherpos..(point.x + 1), true)
         }
     }
 }
@@ -211,7 +208,7 @@ fn setup() -> (Point, Vec<Vec<MapPoint>>, Vec<Vec<MapPoint>>) {
 }
 
 fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapPoint>>, beam: Beam) -> usize {
-    let mut energized : Vec<Vec<bool>> = vec![vec![false; max_point.x]; max_point.y];
+    let mut energized : [[bool; 110]; 110] = [[false; 110]; 110];
     let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
     let mut beams : Vec<Beam> = Vec::with_capacity(30);
     beams.push(beam);
@@ -277,9 +274,17 @@ fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapP
             }
         }
     }
-    // print_energized(&energized).unwrap();
-
-    let count = energized.iter().map(|row| row.iter().filter(|&&b| b).count()).sum::<usize>();
+    let count = {
+        let mut count = 0;
+        for row in &energized {
+            for &b in row {
+                if b {
+                    count += 1;
+                }
+            }
+        }
+        count
+    };
     count
 }
 
@@ -292,26 +297,16 @@ fn part1() {
     println!("Part 1 count: {}", count);
 }
 
-#[derive(Clone)]
-struct Sendable(*const Vec<Vec<MapPoint>>);
-unsafe impl Send for Sendable {}
-
 fn part2() {
     let (max_point, rows, columns) = setup();
     let mut threads = Vec::with_capacity(4);
-    let rows = &rows as *const Vec<Vec<MapPoint>>;
-    let columns = &columns as *const Vec<Vec<MapPoint>>;
-    let rows = Sendable(rows);
-    let columns = Sendable(columns);
+    let rows = Arc::new(rows);
+    let columns = Arc::new(columns);
     for vector in [VEC_LEFT, VEC_RIGHT, VEC_UP, VEC_DOWN] {
         let rows = rows.clone();
         let columns = columns.clone();
         threads.push(
             std::thread::spawn(move || {
-                let rows = rows;
-                let columns = columns;
-                let rows = unsafe { &*rows.0 };
-                let columns = unsafe { &*columns.0 };
                 let mut count = 0;
                 let is_vert = vector.is_vertical();
                 let is_pos = vector.is_positive();
