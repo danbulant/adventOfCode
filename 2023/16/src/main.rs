@@ -1,7 +1,7 @@
 use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash::Hasher, sync::Arc};
 
 fn main() {
-    part1();
+    // part1();
     part2();
     // println!("test");
 }
@@ -207,10 +207,7 @@ fn setup() -> (Point, Vec<Vec<MapPoint>>, Vec<Vec<MapPoint>>) {
     (max_point, rows, columns)
 }
 
-fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapPoint>>, beam: Beam) -> usize {
-    let mut energized : [[bool; 110]; 110] = [[false; 110]; 110];
-    let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
-    let mut beams : Vec<Beam> = Vec::with_capacity(30);
+fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapPoint>>, beam: Beam, beams_set_vec: &mut Vec<bool>, energized: &mut [[bool; 110]; 110], beams: &mut Vec<Beam>) -> usize {
     beams.push(beam);
     let b0 = beams[0].to_nums();
     beams_set_vec[b0] = true;
@@ -244,10 +241,10 @@ fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapP
         };
         match closest {
             None => {
-                mark(vec, beam.point, if vec.is_positive() { max_point.x } else { 0 }, &mut energized);
+                mark(vec, beam.point, if vec.is_positive() { max_point.x } else { 0 }, energized);
             },
             Some(mappoint) => {
-                mark(vec, beam.point, (if vec_is_vertical { mappoint.point.y } else { mappoint.point.x } ) + (if vec.is_positive() { 1 } else { 0 }), &mut energized);
+                mark(vec, beam.point, (if vec_is_vertical { mappoint.point.y } else { mappoint.point.x } ) + (if vec.is_positive() { 1 } else { 0 }), energized);
                 let point = mappoint.point;
                 let mut try_add = |v: Vector| if !v.will_go_oob(point, max_point) {
                     let new_point = point + v;
@@ -273,9 +270,9 @@ fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapP
     }
     let count = {
         let mut count = 0;
-        for row in &energized {
-            for &b in row {
-                if b {
+        for row in energized {
+            for b in row {
+                if *b {
                     count += 1;
                 }
             }
@@ -287,10 +284,13 @@ fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapP
 
 fn part1() {
     let (max_point, rows, columns) = setup();
+    let mut energized : [[bool; 110]; 110] = [[false; 110]; 110];
+    let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
+    let mut beams : Vec<Beam> = Vec::with_capacity(30);
     let count = get_count(max_point, &rows, &columns, Beam {
         point: Point { x: 0, y: 0 },
         vector: VEC_RIGHT
-    });
+    }, &mut beams_set_vec, &mut energized, &mut beams);
     println!("Part 1 count: {}", count);
 }
 
@@ -305,6 +305,9 @@ fn part2() {
         threads.push(
             std::thread::spawn(move || {
                 let mut count = 0;
+                let mut energized : [[bool; 110]; 110] = [[false; 110]; 110];
+                let mut beams_set_vec = vec![false; (max_point.x + 1) * (max_point.y + 1) * 4];
+                let mut beams : Vec<Beam> = Vec::with_capacity(30);
                 let is_vert = vector.is_vertical();
                 let is_pos = vector.is_positive();
                 let num2 = if !is_pos { max_point.x - 1 } else { 0 };
@@ -313,7 +316,10 @@ fn part2() {
                         point: if is_vert { Point { x: num, y: num2 } } else { Point { x: num2, y: num } },
                         vector
                     };
-                    let count_here = get_count(max_point, &rows, &columns, beam);
+                    let count_here = get_count(max_point, &rows, &columns, beam, &mut beams_set_vec, &mut energized, &mut beams);
+                    beams_set_vec.iter_mut().for_each(|b| *b = false);
+                    energized.iter_mut().for_each(|row| row.iter_mut().for_each(|b| *b = false));
+                    beams.clear();
                     if count_here > count {
                         count = count_here;
                     }
