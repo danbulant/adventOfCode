@@ -292,16 +292,26 @@ fn part1() {
     println!("Part 1 count: {}", count);
 }
 
+#[derive(Clone)]
+struct Sendable(*const Vec<Vec<MapPoint>>);
+unsafe impl Send for Sendable {}
+
 fn part2() {
     let (max_point, rows, columns) = setup();
     let mut threads = Vec::with_capacity(4);
-    let rows = Arc::new(rows);
-    let columns = Arc::new(columns);
+    let rows = &rows as *const Vec<Vec<MapPoint>>;
+    let columns = &columns as *const Vec<Vec<MapPoint>>;
+    let rows = Sendable(rows);
+    let columns = Sendable(columns);
     for vector in [VEC_LEFT, VEC_RIGHT, VEC_UP, VEC_DOWN] {
         let rows = rows.clone();
         let columns = columns.clone();
         threads.push(
             std::thread::spawn(move || {
+                let rows = rows;
+                let columns = columns;
+                let rows = unsafe { &*rows.0 };
+                let columns = unsafe { &*columns.0 };
                 let mut count = 0;
                 let is_vert = vector.is_vertical();
                 let is_pos = vector.is_positive();
@@ -314,7 +324,6 @@ fn part2() {
                     let count_here = get_count(max_point, &rows, &columns, beam);
                     if count_here > count {
                         count = count_here;
-                        println!("New max: {} at {},{}", count, num, num2);
                     }
                 }
                 count
