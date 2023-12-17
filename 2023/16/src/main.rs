@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash::Hasher};
+use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash::Hasher, sync::Arc};
 
 fn main() {
     part1();
@@ -294,21 +294,38 @@ fn part1() {
 
 fn part2() {
     let (max_point, rows, columns) = setup();
-    let mut count = 0;
+    let mut threads = Vec::with_capacity(4);
+    let rows = Arc::new(rows);
+    let columns = Arc::new(columns);
     for vector in [VEC_LEFT, VEC_RIGHT, VEC_UP, VEC_DOWN] {
-        let is_vert = vector.is_vertical();
-        let is_pos = vector.is_positive();
-        let num2 = if !is_pos { max_point.x - 1 } else { 0 };
-        for num in 0..max_point.x {
-            let beam = Beam {
-                point: if is_vert { Point { x: num, y: num2 } } else { Point { x: num2, y: num } },
-                vector
-            };
-            let count_here = get_count(max_point, &rows, &columns, beam);
-            if count_here > count {
-                count = count_here;
-                println!("New max: {} at {},{}", count, num, num2);
-            }
+        let rows = rows.clone();
+        let columns = columns.clone();
+        threads.push(
+            std::thread::spawn(move || {
+                let mut count = 0;
+                let is_vert = vector.is_vertical();
+                let is_pos = vector.is_positive();
+                let num2 = if !is_pos { max_point.x - 1 } else { 0 };
+                for num in 0..max_point.x {
+                    let beam = Beam {
+                        point: if is_vert { Point { x: num, y: num2 } } else { Point { x: num2, y: num } },
+                        vector
+                    };
+                    let count_here = get_count(max_point, &rows, &columns, beam);
+                    if count_here > count {
+                        count = count_here;
+                        println!("New max: {} at {},{}", count, num, num2);
+                    }
+                }
+                count
+            })
+        )
+    }
+    let mut count = 0;
+    for thread in threads {
+        let count_here = thread.join().unwrap();
+        if count_here > count {
+            count = count_here;
         }
     }
     println!("Max count: {}", count);
