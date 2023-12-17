@@ -2,7 +2,7 @@ use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash:
 
 fn main() {
     part1();
-    // part2();
+    part2();
     // println!("test");
 }
 
@@ -248,28 +248,25 @@ fn get_count(max_point: Point, rows: &Vec<Vec<MapPoint>>, columns: &Vec<Vec<MapP
             },
             Some(mappoint) => {
                 mark(vec, beam.point, (if vec_is_vertical { mappoint.point.y } else { mappoint.point.x } ) + (if vec.is_positive() { 1 } else { 0 }), &mut energized);
-                let mut vecs = Vec::with_capacity(2);
+                let point = mappoint.point;
+                let mut try_add = |v: Vector| if !v.will_go_oob(point, max_point) {
+                    let new_point = point + v;
+                    let beam = Beam {
+                        point: new_point,
+                        vector: v
+                    };
+                    let bnum = beam.to_nums();
+                    if beams_set_vec[bnum] == false {
+                        beams_set_vec[bnum] = true;
+                        beams.push(beam);
+                    }
+                };
                 if mappoint.mirror == Type::SplitHorizontal || mappoint.mirror == Type::SplitVertical {
                     let (v1, v2) = vectors_from_split(mappoint.mirror);
-                    vecs.push(v1);
-                    vecs.push(v2);
+                    try_add(v1);
+                    try_add(v2);
                 } else {
-                    vecs.push(vec.map_by_mirror(mappoint.mirror));
-                }
-                let point = mappoint.point;
-                for v in vecs {
-                    if !v.will_go_oob(point, max_point) {
-                        let new_point = point + v;
-                        let beam = Beam {
-                            point: new_point,
-                            vector: v
-                        };
-                        let bnum = beam.to_nums();
-                        if beams_set_vec[bnum] == false {
-                            beams_set_vec[bnum] = true;
-                            beams.push(beam);
-                        }
-                    }
+                    try_add(vec.map_by_mirror(mappoint.mirror));
                 }
             }
         }
