@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, hash::Hasher, sync::Arc};
+use std::{fs::File, io::{BufReader, BufRead, Write}, ops::Add, fmt::Debug, sync::Arc};
 
 fn main() {
     // part1();
@@ -9,13 +9,13 @@ fn main() {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Type {
     /// Mirror bottom-to-top (/)
-    MirrorBT,
+    MirrorBT = '/' as isize,
     /// Mirror top-to-bottom (\)
-    MirrorTB,
+    MirrorTB = '\\' as isize,
     /// Split horizontally (-)
-    SplitHorizontal,
+    SplitHorizontal = '-' as isize,
     /// Split vertically (|)
-    SplitVertical,
+    SplitVertical = '|' as isize
 }
 
 fn vectors_from_split(split: Type) -> (Vector, Vector) {
@@ -166,6 +166,8 @@ fn get_map() -> Vec<Vec<char>> {
     let map : Vec<Vec<char>> = reader.lines().map(|l| l.unwrap().chars().collect()).collect();
     map
 }
+
+const ALLOWED_CHARS: [char; 4] = ['/', '\\', '-', '|'];
 
 fn get_rows_and_cols(map: Vec<Vec<char>>) -> (Vec<Vec<MapPoint>>, Vec<Vec<MapPoint>>) {
     let rows: Vec<Vec<MapPoint>> = map.iter().enumerate().map(|(y, row)| {
