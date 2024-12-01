@@ -19,7 +19,8 @@ pub struct Args {
 pub struct Context {
     pub args: Args,
     pub day: u8,
-    pub output: String
+    pub output1: String,
+    pub output2: String,
 }
 
 impl Context {
@@ -33,15 +34,25 @@ impl Context {
             .unwrap()
             .parse()
             .unwrap();
-        let mut output = args.input.clone();
-        if let Some(pos) = output.rfind('.') {
-            output.replace_range(pos.., ".out");
+        let mut output1 = args.input.clone();
+        let mut output2 = args.input.clone();
+        if let Some(pos) = output1.rfind('.') {
+            output1.replace_range(pos.., ".part1.out");
+            output2.replace_range(pos.., ".part2.out");
         }
-        Self { args, day, output }
+        Self { args, day, output1, output2 }
     }
 
-    fn read_output(&self) -> Option<String> {
-        std::fs::read_to_string(&self.output).ok()
+    fn output(&self, part: u8) -> &str {
+        match part {
+            1 => &self.output1,
+            2 => &self.output2,
+            _ => unreachable!()
+        }
+    }
+
+    fn read_output(&self, part: u8) -> Option<String> {
+        std::fs::read_to_string(&self.output(part)).ok()
     }
 }
 
@@ -78,7 +89,7 @@ impl Day {
 
     fn verify_part(&self, part: u8, ctx: &Context) -> Result<()> {
         println!("Day {} Part {}", ctx.day, part);
-        let expected = ctx.read_output();
+        let expected = ctx.read_output(part);
         let start = std::time::Instant::now();
         let result = match part {
             1 => self.part1.as_ref().unwrap()(ctx),
@@ -97,8 +108,9 @@ impl Day {
             }
         } else {
             println!("{}", result);
-            std::fs::write(ctx.output.to_string() + ".run", &result)?;
-            println!("Output written to {}", ctx.output.to_string() + ".run");
+            let path = ctx.output(part).to_string() + ".run";
+            std::fs::write(&path, &result)?;
+            println!("Output written to {} - no example output provided, nothing to diff.", path);
         }
         println!("OK");
         Ok(())
