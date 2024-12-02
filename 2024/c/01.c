@@ -14,7 +14,7 @@ struct DynSlice {
 
 // Constructs a new dyn slice, a vector type
 // default capacity is 0 and no backing data is allocated, use DS_grow
-struct DynSlice DS_create(usize size_of) {
+struct DynSlice DS_create(const usize size_of) {
     struct DynSlice slice;
     slice.data = NULL;
     slice.size = 0;
@@ -24,7 +24,7 @@ struct DynSlice DS_create(usize size_of) {
 }
 
 // Exit with message and error code 1
-void panic(char* msg) {
+void panic(const char* msg) {
     printf("%s\n", msg);
     exit(1);
 }
@@ -34,7 +34,6 @@ void panic(char* msg) {
 void DS_grow(struct DynSlice* slice, usize newcap) {
     usize cap = slice->capacity;
     usize size = slice->size;
-    printf("Growing %li %li\n", cap, size);
 
     void* dataptr = slice->data;
     
@@ -55,8 +54,8 @@ void DS_grow(struct DynSlice* slice, usize newcap) {
     slice->data = newdataptr;
 }
 
-void DS_debugprint(struct DynSlice* slice) {
-    printf("dynslice, size %li, cap %li, size of %li", slice->size, slice->capacity, slice->size_of);
+void DS_debugprint(const struct DynSlice* slice) {
+    printf("dynslice, size %li, cap %li, size of %li\n", slice->size, slice->capacity, slice->size_of);
 }
 
 // Pushes a new object. Accepts a pointer to said object. Copies. 
@@ -76,8 +75,6 @@ usize DS_push(struct DynSlice* slice, void* ptr) {
 // Extends a slice from another array-like object
 void DS_extend(struct DynSlice* slice, void* ptr, usize count) {
     if(slice->capacity < slice->size + count) DS_grow(slice, slice->size + count);
-    printf("extending %li\n", count);
-    DS_debugprint(slice);
     memcpy(slice->data + slice->size * slice->size_of, ptr, slice->size_of * count);
     slice->size += count;
 }
@@ -105,20 +102,57 @@ void DS_drop(struct DynSlice* slice) {
 }
 
 // Gets pointer to a single element, checking it's size
-void* DS_get(struct DynSlice* slice, usize i) {
+void* DS_get(const struct DynSlice* slice, const usize i) {
     if(slice->size >= i) {
         panic("DS Get out of bounds");
     }
     return slice->data + i * slice->size_of;
 }
 
-int main() {
-    // FILE* file = fopen("input.txt", "r");
+usize UZERO = 0;
+
+struct DynSlice DS_line_from_file(FILE* input) {
+    int BUF_SIZE = 1024;
+    struct DynSlice data = DS_create(sizeof(char));
+    long int pos = ftell(input);
+    
+    char buf[BUF_SIZE+1];
+    buf[BUF_SIZE] = 0;
+    while(1) {
+        const usize code = fread(buf, sizeof(buf[0]), BUF_SIZE, input);
+        if(code != BUF_SIZE && ferror(input)) {
+            panic("DS line file error");
+        }
+        buf[code] = 0; // strchr reads until 0 byte, this can guarantee it
+        const char* result = strchr(buf, '\n');
+        if(result != NULL) {
+            const usize num = result - buf;
+            if(num < code) {
+                DS_extend(&data, buf, num);
+                DS_push(&data, &UZERO);
+                pos += num + 1;
+                fseek(input, pos, SEEK_SET);
+                return data;
+            }
+        }
+        DS_extend(&data, buf, code);
+        // error state checked before, this means EOF
+        if(code != BUF_SIZE) {
+            DS_push(&data, &UZERO);
+            return data;
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
     setvbuf(stdout, NULL, _IONBF, 0);
-    struct DynSlice example = DS_create(sizeof(char));
-    DS_extend_string(&example, "Hello, ");
-    DS_extend_string(&example, "world!");
-    DS_push(&example, '\0');
-    printf("%s\n", (char*)example.data);
-    DS_drop(&example);
+    const char* loc = argv[1];
+    printf("file %s\n", loc);
+    FILE* input = fopen(loc, "r");
+    while(!feof(input)) {
+        struct DynSlice line = DS_line_from_file(input);
+        printf("%s\n", (char*)line.data);
+        DS_drop(&line);
+    }
+    fclose(input);
 }
