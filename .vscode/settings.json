@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.nomad": "hcl",
+        "vector": "c"
+    }
+}
